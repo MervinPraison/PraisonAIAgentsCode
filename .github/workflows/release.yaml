@@ -19,9 +19,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # TODO: cache building yarn --production
-  # possibly 2m30s of savings(?)
-  # this requires refactoring our release scripts
   package-linux-amd64:
     name: x86-64 Linux build
     runs-on: ubuntu-latest
@@ -39,6 +36,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test/package-lock.json
+
+      - run: SKIP_SUBMODULE_DEPS=1 npm ci
 
       - name: Install development tools
         run: |
@@ -56,25 +59,16 @@ jobs:
           mv envsubst ~/.local/bin
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Install yarn
-        run: npm install -g yarn
-
       - name: Download npm package
         uses: actions/download-artifact@v4
         with:
           name: npm-release-package
 
-      - name: Decompress npm package
-        run: tar -xzf package.tar.gz
+      - run: tar -xzf package.tar.gz
 
-      - name: Build standalone release
-        run: npm run release:standalone
+      - run: npm run release:standalone
 
-      - name: Install test dependencies
-        run: SKIP_SUBMODULE_DEPS=1 yarn --frozen-lockfile
-
-      - name: Run integration tests on standalone release
-        run: yarn test:integration
+      - run: npm run test:integration
 
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v4
@@ -83,19 +77,17 @@ jobs:
         if: success()
         continue-on-error: true
 
-      # NOTE@jsjoeio - we do this so we can strip out the v
-      # i.e. v4.9.1 -> 4.9.1
+      # Strip out the v (v4.9.1 -> 4.9.1).
       - name: Get and set VERSION
         run: |
           TAG="${{ inputs.version || github.ref_name }}"
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
 
-      - name: Build packages with nfpm
-        env:
+      - env:
           VERSION: ${{ env.VERSION }}
-        run: yarn package
+        run: npm run package
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v1
         with:
           draft: true
           discussion_category_name: "📣 Announcements"
@@ -141,6 +133,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test/package-lock.json
 
       - name: Install cross-compiler and system dependencies
         run: |
@@ -153,7 +149,10 @@ jobs:
             libsecret-1-dev:$TARGET_ARCH \
             libkrb5-dev:$TARGET_ARCH \
             ca-certificates \
-            curl wget rsync gettext-base
+            curl wget rsync gettext-base \
+            python3
+
+      - run: SKIP_SUBMODULE_DEPS=1 npm ci
 
       - name: Install nfpm
         run: |
@@ -166,11 +165,8 @@ jobs:
         with:
           name: npm-release-package
 
-      - name: Decompress npm package
-        run: tar -xzf package.tar.gz
-
-      - name: Build standalone release
-        run: npm run release:standalone
+      - run: tar -xzf package.tar.gz
+      - run: npm run release:standalone
 
       - name: Replace node with cross-compile equivalent
         run: |
@@ -179,19 +175,17 @@ jobs:
           tar -xf node-${node_version}-linux-${npm_config_arch}.tar.xz node-${node_version}-linux-${npm_config_arch}/bin/node --strip-components=2
           mv ./node ./release-standalone/lib/node
 
-      # NOTE@jsjoeio - we do this so we can strip out the v
-      # i.e. v4.9.1 -> 4.9.1
+      # Strip out the v (v4.9.1 -> 4.9.1).
       - name: Get and set VERSION
         run: |
           TAG="${{ inputs.version || github.ref_name }}"
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
 
-      - name: Build packages with nfpm
-        env:
+      - env:
           VERSION: ${{ env.VERSION }}
         run: npm run package ${npm_config_arch}
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v1
         with:
           draft: true
           discussion_category_name: "📣 Announcements"
@@ -202,6 +196,9 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 15
     needs: npm-version
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -210,6 +207,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test/package-lock.json
+
+      - run: SKIP_SUBMODULE_DEPS=1 npm ci
 
       - name: Install nfpm
         run: |
@@ -221,28 +224,18 @@ jobs:
       # in Python 3.12.  It seems to be fixed in the latest node-gyp so when we
       # next update Node we can probably remove this.  For now, install
       # setuptools since it contains distutils.
-      - name: Install Python utilities
-        run: brew install python-setuptools
+      - run: brew install python-setuptools
 
       - name: Download npm package
         uses: actions/download-artifact@v4
         with:
           name: npm-release-package
 
-      - name: Decompress npm package
-        run: tar -xzf package.tar.gz
+      - run: tar -xzf package.tar.gz
+      - run: npm run release:standalone
+      - run: npm run test:native
 
-      - name: Build standalone release
-        run: npm run release:standalone
-
-      - name: Install test dependencies
-        run: SKIP_SUBMODULE_DEPS=1 yarn install
-
-      - name: Run native module tests on standalone release
-        run: yarn test:native
-
-      # NOTE@jsjoeio - we do this so we can strip out the v
-      # i.e. v4.9.1 -> 4.9.1
+      # Strip out the v (v4.9.1 -> 4.9.1).
       - name: Get and set VERSION
         run: |
           TAG="${{ inputs.version || github.ref_name }}"
@@ -251,9 +244,9 @@ jobs:
       - name: Build packages with nfpm
         env:
           VERSION: ${{ env.VERSION }}
-        run: yarn package
+        run: npm run package
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v1
         with:
           draft: true
           discussion_category_name: "📣 Announcements"
@@ -270,7 +263,7 @@ jobs:
         with:
           name: npm-release-package
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v1
         with:
           draft: true
           discussion_category_name: "📣 Announcements"
@@ -292,11 +285,9 @@ jobs:
           check_artifacts: false
           if_no_artifact_found: fail
 
-      - name: Decompress npm package
-        run: tar -xzf package.tar.gz
+      - run: tar -xzf package.tar.gz
 
-      # NOTE@jsjoeio - we do this so we can strip out the v
-      # i.e. v4.9.1 -> 4.9.1
+      # Strip out the v (v4.9.1 -> 4.9.1).
       - name: Get and set VERSION
         run: |
           TAG="${{ inputs.version || github.ref_name }}"
@@ -315,8 +306,7 @@ jobs:
           # Ensure it has the same permissions as before
           chmod 644 release/lib/vscode/product.json
 
-      - name: Compress release package
-        run: tar -czf package.tar.gz release
+      - run: tar -czf package.tar.gz release
 
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4

@@ -22,6 +22,62 @@ Code v99.99.999
 
 ## Unreleased
 
+## [4.96.2](https://github.com/coder/code-server/releases/tag/v4.96.2) - 2024-12-20
+
+Code v1.96.2
+
+### Changed
+
+- Update to Code 1.96.2.
+
+## [4.96.1](https://github.com/coder/code-server/releases/tag/v4.96.1) - 2024-12-18
+
+Code v1.96.1
+
+### Added
+
+- Dark color scheme for login and error pages.
+
+### Changed
+
+- Update to Code 1.96.1.
+
+## [4.95.3](https://github.com/coder/code-server/releases/tag/v4.95.3) - 2024-11-18
+
+Code v1.95.3
+
+### Changed
+
+- Update to Code 1.95.3.
+
+## [4.95.2](https://github.com/coder/code-server/releases/tag/v4.95.2) - 2024-11-12
+
+Code v1.95.2
+
+### Changed
+
+- Update to Code 1.95.2.
+
+## [4.95.1](https://github.com/coder/code-server/releases/tag/v4.95.1) - 2024-11-06
+
+Code v1.95.1
+
+### Changed
+
+- Update to Code 1.95.1.
+
+## [4.93.1](https://github.com/coder/code-server/releases/tag/v4.93.1) - 2024-09-23
+
+Code v1.93.1
+
+### Changed
+
+- Updated to Code 1.93.1.
+
+### Added
+
+- Added `--abs-proxy-base-path` flag for when code-server is not at the root.
+
 ## [4.92.2](https://github.com/coder/code-server/releases/tag/v4.92.2) - 2024-08-19
 
 Code v1.92.2
